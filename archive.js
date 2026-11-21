@@ -131,14 +131,20 @@ async function loaditSnapshot(options) {
   for (const el of root.querySelectorAll("[style]")) el.setAttribute("style", await inlineCSS(el.getAttribute("style"), document.baseURI));
   const originalImages = [...document.querySelectorAll("img")];
   const copyImages = [...root.querySelectorAll("img")];
-  for (let i = 0; i < copyImages.length; i++) {
-    const copy = copyImages[i], orig = originalImages[i];
-    const url = orig?.currentSrc || orig?.getAttribute("src") || copy.getAttribute("src");
-    const data = await asData(url);
-    if (data) copy.setAttribute("src", data);
-    else copy.removeAttribute("src");
-    copy.removeAttribute("srcset"); copy.removeAttribute("sizes"); copy.removeAttribute("loading");
-  }
+  // Capped parallelism avoids a 7-second serial delay for every unavailable image.
+  let nextImage = 0;
+  const imageWorkers = Array.from({ length: Math.min(6, copyImages.length) }, async () => {
+    while (nextImage < copyImages.length) {
+      const i = nextImage++;
+      const copy = copyImages[i], orig = originalImages[i];
+      const url = orig?.currentSrc || orig?.getAttribute("src") || copy.getAttribute("src");
+      const data = await asData(url);
+      if (data) copy.setAttribute("src", data);
+      else copy.removeAttribute("src");
+      copy.removeAttribute("srcset"); copy.removeAttribute("sizes"); copy.removeAttribute("loading");
+    }
+  });
+  await Promise.all(imageWorkers);
   for (const source of root.querySelectorAll("picture source")) source.remove();
   // Media is captured when it fits the per-page byte budget.
   const originals = [...document.querySelectorAll("video,audio")];
@@ -193,6 +199,8 @@ const LoaditArchive = {
     const seen = new Set();
     const pages = [];
     const errors = [];
+    let totalHtmlSize = 0;
+    const overallLimit = 35 * 1024 * 1024;
     const currentTabs = await chrome.tabs.query({ currentWindow: true, active: true });
     const activeTab = currentTabs[0];
     const clean = value => { const u = new URL(value); u.hash = ""; return u.href; };
@@ -232,7 +240,12 @@ const LoaditArchive = {
         });
         const snapshot = result?.[0]?.result;
         if (!snapshot?.html) throw Error("페이지 DOM을 캡처하지 못했습니다.");
+        if (totalHtmlSize + snapshot.html.length > overallLimit) {
+          errors.push({url,reason:"단일 HTML 총 용량 35MiB 제한에 도달했습니다."});
+          break;
+        }
         pages.push({ url: snapshot.url, title: snapshot.title, html: snapshot.html });
+        totalHtmlSize += snapshot.html.length;
         if (snapshot.failures.length) errors.push({ url, reason: snapshot.failures.length + "개 리소스 보존 실패", resources: snapshot.failures.slice(0, 12) });
         if (task.depth < depth) {
           for (const link of snapshot.links) {
