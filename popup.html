@@ -31,6 +31,7 @@
 <label for="gh-repo">저장소</label><input id="gh-repo" placeholder="owner/repository" spellcheck="false">
 <label for="gh-path">새 파일 경로</label><input id="gh-path" placeholder="notes/2026-11-21-note.md" spellcheck="false">
 <label for="gh-token">GitHub Personal Access Token (Contents: write)</label><input id="gh-token" type="password" placeholder="저장하지 않는 일회성 토큰" autocomplete="off" spellcheck="false">
+<div class="group-head" style="margin-top:11px"><button id="browse-repos" class="small" type="button">저장소 조회</button><button id="browse-folder" class="small" type="button">폴더 탐색</button></div><div id="github-browser" class="list" aria-live="polite"><p class="muted">저장소 조회 또는 폴더 탐색을 누르세요.</p></div>
 <button id="save-github" class="primary full">GitHub에 새 파일 생성</button>
 <p class="hint">토큰은 설정·저장소에 저장하지 않고, 요청에만 사용합니다. 기존 파일은 덮어쓰지 않습니다.</p></div>
 </section>

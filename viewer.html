@@ -1,85 +1,213 @@
 <!doctype html>
 <html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light">
-<title>Loadit · 저장된 웹사이트</title>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>Loadit · 오프라인 사이트 아카이브</title>
 <style>
-:root{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans KR",sans-serif;color:#eaf1ff;background:#0b1221}
+:root{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans KR",sans-serif;color:#e8f0ff;background:#0b1425}
 *{box-sizing:border-box}body{margin:0;display:grid;grid-template-rows:56px minmax(0,1fr);height:100dvh}
-header{display:flex;align-items:center;gap:13px;padding:10px 16px;background:#121d33;border-bottom:1px solid #31405b}
-.brand{font-weight:800;letter-spacing:-.03em;font-size:19px;color:#87adff}header small{color:#a9b6cc;font-size:11px}
-header .meta{margin-left:auto;color:#a9b6cc;font-size:12px}main{min-height:0;display:grid;grid-template-columns:270px minmax(0,1fr)}
-aside{background:#10192c;border-right:1px solid #2d3c57;display:flex;flex-direction:column;min-height:0}
-.search{padding:12px;border-bottom:1px solid #29364d}
-input{background:#1b2a44;border:1px solid #395071;border-radius:9px;width:100%;color:#fff;padding:10px 12px;font:inherit;font-size:13px}
+header{display:flex;align-items:center;gap:15px;padding:10px 16px;background:#13223c;border-bottom:1px solid #304564}
+.brand{font-size:20px;font-weight:850;letter-spacing:-.04em;color:#80adff}
+.meta{font-size:11px;color:#a4badb;margin-left:auto}
+main{min-height:0;display:grid;grid-template-columns:260px minmax(0,1fr)}
+aside{min-height:0;display:flex;flex-direction:column;background:#111d32;border-right:1px solid #304361}
+.search{padding:11px;border-bottom:1px solid #283b57}input[type="search"]{width:100%;font:inherit;background:#1c2d49;border:1px solid #3d577a;border-radius:8px;color:white;padding:9px}
 #nav{padding:7px;overflow:auto;flex:1}button{font:inherit;cursor:pointer}
-.page{width:100%;background:none;color:#bdcce2;border:0;text-align:left;padding:12px;border-radius:9px;display:block}
-.page:hover{background:#1d2b42}.page[aria-current="page"]{background:#243b65;color:#fff}
-.page span{display:block;font-size:13px;font-weight:650;overflow-wrap:anywhere}.page small{display:block;font-size:10px;color:#96a9c6;overflow-wrap:anywhere;margin-top:5px}
-article{display:flex;min-height:0;flex-direction:column;background:white;color:#243049}
-.bar{height:42px;background:#f2f5fa;border-bottom:1px solid #dce3ef;display:flex;align-items:center;gap:9px;padding:0 12px;font-size:12px}
-.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.bar button{border:1px solid #c7d3e4;border-radius:7px;background:white;padding:5px 9px;color:#233b5e}
-#frame{flex:1;width:100%;border:0;background:white;min-height:0}
-#notice{background:#fff2d1;color:#715314;padding:7px 12px;font-size:12px;display:none}
-#empty{padding:30px;color:#cbd8f1}footer{padding:9px;font-size:10px;color:#8698b4;border-top:1px solid #29364d}
-@media(max-width:700px){main{grid-template-columns:132px minmax(0,1fr)}header small,.meta{display:none}.page{padding:9px}.page span{font-size:11px}}
-</style>
-</head>
+.page{display:block;width:100%;border:0;background:none;text-align:left;color:#c7d6ec;border-radius:9px;padding:11px}
+.page[aria-current="page"]{background:#27416b;color:white}.page:hover{background:#213656}
+.page span{display:block;font-size:13px;font-weight:700;overflow-wrap:anywhere}.page small{display:block;font-size:10px;color:#94aacc;overflow-wrap:anywhere;margin-top:5px}
+aside footer{padding:11px;color:#869fbe;font-size:10px;border-top:1px solid #304361}
+article{display:flex;flex-direction:column;min-height:0;background:white;color:#2a3650}
+.toolbar{min-height:47px;display:flex;align-items:center;gap:7px;padding:7px 11px;background:#f1f5fb;border-bottom:1px solid #d8e3ee;font-size:12px}
+.toolbar button{border:1px solid #cad5e3;border-radius:7px;background:#fff;color:#26446b;padding:7px 9px}
+#address{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.replay{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:11px;color:#3b5678;cursor:pointer}
+.replay input{accent-color:#3a73d7}#frame{flex:1;width:100%;border:0;background:#fff;min-height:0}
+#notice{padding:8px 12px;background:#fff3d5;color:#68511c;font-size:12px;display:none}
+#status{font-size:10px;color:#456482;padding:7px 11px;border-top:1px solid #e4e9f0;background:#f8fafc}
+@media(max-width:710px){main{grid-template-columns:135px minmax(0,1fr)}.page{padding:8px}.page span{font-size:11px}.page small{font-size:9px}.meta{display:none}.toolbar{flex-wrap:wrap}.replay{order:5;width:100%}}
+</style></head>
 <body>
-<header><span class="brand">loadit.</span><small>오프라인 사이트 아카이브 · 외부 서버 없이 동작</small><span id="count" class="meta"></span></header>
-<main><aside><div class="search"><input id="query" placeholder="페이지 검색" aria-label="페이지 검색"></div><nav id="nav"></nav><footer>Loadit Archive · 데이터는 이 HTML에 내장됨</footer></aside>
-<article><div class="bar"><button id="back" type="button" title="이전 페이지">←</button><button id="forward" type="button" title="다음 페이지">→</button><span id="address">페이지를 선택하세요</span></div><div id="notice" role="status"></div><iframe id="frame" title="저장된 페이지" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe></article></main>
+<header><span class="brand">loadit.</span><span>웹사이트 아카이브</span><span class="meta" id="count"></span></header>
+<main><aside><div class="search"><input id="query" type="search" placeholder="페이지 검색" aria-label="저장된 페이지 검색"></div>
+<nav id="nav" aria-label="저장된 페이지"></nav><footer>오프라인 · 단일 HTML · 외부 의존성 없음</footer></aside>
+<article><div class="toolbar"><button id="back" type="button" title="뒤로">←</button><button id="forward" type="button" title="앞으로">→</button><span id="address"></span>
+<label class="replay" title="원본 페이지의 JavaScript를 오프라인 샌드박스에서 재실행합니다. 일부 페이지는 작동하지 않을 수 있습니다."><input id="replay" type="checkbox">원본 JS 재생 (실험)</label></div>
+<div id="notice" role="status"></div><iframe id="frame" title="보존된 웹페이지" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><div id="status"></div></article></main>
 <script id="loadit-payload" type="application/json">__LOADIT_PAGES__</script>
 <script>
 (function(){
 "use strict";
-const payload = JSON.parse(document.querySelector("#loadit-payload").textContent);
-const pages = Array.isArray(payload.pages) ? payload.pages : [];
-const byUrl = new Map(pages.map((page, i) => [canonical(page.url), i]));
-const nav = document.querySelector("#nav");
-const frame = document.querySelector("#frame");
-const notice = document.querySelector("#notice");
-const history = [];
-let position = -1, current = -1;
+const archive=JSON.parse(document.querySelector("#loadit-payload").textContent);
+const pages=Array.isArray(archive.pages)?archive.pages:[];
+const frame=document.querySelector("#frame"), nav=document.querySelector("#nav");
+const notice=document.querySelector("#notice"), status=document.querySelector("#status");
+let current=-1,position=-1;const history=[];
+const index=new Map(pages.map((page,i)=>[canonical(page.url),i]));
 function canonical(value){try{const u=new URL(value);u.hash="";return u.href;}catch{return value;}}
-function message(text){notice.textContent=text;notice.style.display="block";}
-function show(index, record){
- if (!pages[index]) return;
- current=index;const page=pages[index];if(record){history.splice(position+1);history.push(index);position=history.length-1;}
- document.querySelector("#address").textContent=page.url;
- document.title=(page.title||page.url)+" · Loadit";
- notice.style.display="none";frame.srcdoc=page.html;
- for(const btn of nav.querySelectorAll(".page"))btn.setAttribute("aria-current",Number(btn.dataset.index)===index?"page":"false");
+function info(text){notice.textContent=text;notice.style.display="block";}
+function escapeJSON(data){return JSON.stringify(data).replace(/</g,"\\u003c").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029");}
+function boot(page,enableReplay){
+  const originalUrl=page.url;
+  const records=(page.network?.resources||[]).filter(r=>r.type==="XHR"||r.type==="Fetch");
+  const sockets=page.network?.websockets||[];
+  function canonicalURL(input){try{const url=new URL(typeof input==="object"&&input.url?input.url:String(input),originalUrl);url.hash="";return url.href;}catch{return String(input);}}
+  // Transport is disabled by the sandbox's CSP. Only previously observed responses can be returned.
+  const counters=new Map();
+  function take(method,url){
+    const key=String(method||"GET").toUpperCase()+" "+canonicalURL(url);
+    const found=records.filter(r=>(r.method||"GET").toUpperCase()+" "+canonicalURL(r.url)===key);
+    const n=counters.get(key)||0;counters.set(key,n+1);
+    return found[n]||found[found.length-1]||null;
+  }
+  function decode(rec){if(!rec)return null;
+    if(!rec.base64)return rec.body;
+    try{const binary=atob(rec.body);return Uint8Array.from(binary,c=>c.charCodeAt(0));}catch{return null;}
+  }
+  function getResult(rec){
+    const body=[204,205,304].includes(rec.status)?null:decode(rec);
+    const headers=new Headers();
+    if(rec.mime)try{headers.set("content-type",rec.mime);}catch{}
+    return new Response(body,{status:rec.status>=200&&rec.status<=599?rec.status:200,statusText:rec.statusText||"",headers});
+  }
+  // Offline navigation is routed to the parent archive viewer; no network browsing.
+  document.addEventListener("click",event=>{
+    const target=event.target?.closest?.("a[href]");
+    if(!target)return;
+    const href=target.getAttribute("href");if(!href||href.charAt(0)==="#")return;
+    event.preventDefault();event.stopPropagation();
+    parent.postMessage({loadit:"navigate",href:canonicalURL(href)},"*");
+  },true);
+  document.addEventListener("submit",event=>{event.preventDefault();parent.postMessage({loadit:"form"},"*");},true);
+  if(!enableReplay)return;
+  window.fetch=(input,init)=>new Promise((resolve,reject)=>{
+    const method=init?.method||input?.method||"GET";
+    const rec=take(method,input);
+    if(!rec)return reject(new TypeError("Loadit: 요청이 기록되어 있지 않아 오프라인에서 재생할 수 없습니다."));
+    try{resolve(getResult(rec));}catch(error){reject(error);}
+  });
+  class OfflineXHR extends EventTarget {
+    constructor(){super();this.readyState=0;this.status=0;this.statusText="";this.responseType="";this.response=null;this.responseText="";this.timeout=0;this.withCredentials=false;this._headers={};}
+    open(method,url,async=true){this._method=method;this._url=url;this._async=async;this.readyState=1;this.dispatchEvent(new Event("readystatechange"));}
+    setRequestHeader(name,value){this._headers[name.toLowerCase()]=value;}
+    getResponseHeader(name){return name?.toLowerCase()==="content-type"?this._mime:null;}
+    getAllResponseHeaders(){return this._mime?"content-type: "+this._mime+"\\r\\n":"";}
+    overrideMimeType(value){this._mime=value;}
+    abort(){this.readyState=0;this.dispatchEvent(new Event("abort"));}
+    send(){
+      queueMicrotask(()=>{
+        const rec=take(this._method,this._url);
+        if(!rec){this.status=0;this.dispatchEvent(new Event("error"));this.dispatchEvent(new Event("loadend"));return;}
+        this.status=rec.status;this.statusText=rec.statusText||"";this._mime=rec.mime||"";
+        const decoded=decode(rec);
+        this.readyState=2;this.dispatchEvent(new Event("readystatechange"));
+        this.readyState=3;this.dispatchEvent(new Event("readystatechange"));
+        if(this.responseType==="arraybuffer"){
+          const data=typeof decoded==="string"?new TextEncoder().encode(decoded):decoded;
+          this.response=data?.buffer||new ArrayBuffer(0);
+        } else if(this.responseType==="blob"){this.response=new Blob([decoded||""],{type:this._mime});}
+        else {
+          const body=typeof decoded==="string"?decoded:new TextDecoder().decode(decoded||new Uint8Array());
+          this.responseText=body;
+          if(this.responseType==="json"){try{this.response=JSON.parse(body);}catch{this.response=null;}}
+          else this.response=body;
+        }
+        this.readyState=4;this.dispatchEvent(new Event("readystatechange"));
+        this.dispatchEvent(new Event("load"));this.dispatchEvent(new Event("loadend"));
+      });
+    }
+  }
+  for(const eventName of ["load","error","readystatechange","loadend","abort"]){
+    Object.defineProperty(OfflineXHR.prototype,"on"+eventName,{get(){return this["_on"+eventName]||null;},set(value){if(this["_on"+eventName])this.removeEventListener(eventName,this["_on"+eventName]);this["_on"+eventName]=typeof value==="function"?value:null;if(this["_on"+eventName])this.addEventListener(eventName,this["_on"+eventName]);}});
+  }
+  OfflineXHR.UNSENT=0;OfflineXHR.OPENED=1;OfflineXHR.HEADERS_RECEIVED=2;OfflineXHR.LOADING=3;OfflineXHR.DONE=4;
+  window.XMLHttpRequest=OfflineXHR;
+  class OfflineWebSocket extends EventTarget{
+    static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+    constructor(url){
+      super();this.url=canonicalURL(String(url).replace(/^ws/,"http")).replace(/^http/,"ws");
+      this.readyState=0;this.protocol="";this.extensions="";this.binaryType="blob";
+      this._timers=[];
+      this._record=sockets.find(s=>s.url===this.url);
+      this._timers.push(setTimeout(()=>{
+        if(this.readyState!==0)return;
+        this.readyState=1;this.dispatchEvent(new Event("open"));
+        for(const evt of this._record?.events||[]){
+          if(evt.direction!=="in")continue;
+          this._timers.push(setTimeout(()=>{
+            if(this.readyState!==1)return;
+            let value=evt.data;
+            if(evt.opcode===2)try{const data=Uint8Array.from(atob(evt.data),c=>c.charCodeAt(0));value=this.binaryType==="arraybuffer"?data.buffer:new Blob([data]);}catch{}
+            this.dispatchEvent(new MessageEvent("message",{data:value}));
+          },Math.min(30000,Math.max(0,evt.at||0))));
+        }
+      },0));
+    }
+    send(){if(this.readyState!==1)throw new DOMException("Socket is not open","InvalidStateError");}
+    close(){if(this.readyState===3)return;this.readyState=3;for(const timer of this._timers)clearTimeout(timer);this.dispatchEvent(new CloseEvent("close",{wasClean:true,code:1000}));}
+  }
+  for(const eventName of ["open","message","error","close"]){
+    Object.defineProperty(OfflineWebSocket.prototype,"on"+eventName,{get(){return this["_on"+eventName]||null;},set(value){if(this["_on"+eventName])this.removeEventListener(eventName,this["_on"+eventName]);this["_on"+eventName]=typeof value==="function"?value:null;if(this["_on"+eventName])this.addEventListener(eventName,this["_on"+eventName]);}});
+  }
+  window.WebSocket=OfflineWebSocket;
 }
-function list(){
- const query=document.querySelector("#query").value.trim().toLowerCase();nav.replaceChildren();
- pages.forEach((p,i)=>{if(query && !(p.title+" "+p.url).toLowerCase().includes(query))return;
- const btn=document.createElement("button");btn.className="page";btn.dataset.index=i;btn.type="button";
- const label=document.createElement("span");label.textContent=p.title||p.url;
- const hint=document.createElement("small");hint.textContent=p.url;
- btn.append(label,hint);btn.addEventListener("click",()=>show(i,true));nav.append(btn);
- });
+function render(page,replay){
+  const documentCopy=new DOMParser().parseFromString(page.html,"text/html");
+  const head=documentCopy.head;
+  const runtime=documentCopy.createElement("script");
+  const scopedData=replay?{url:page.url,network:page.network}:{url:page.url};
+  runtime.textContent="("+boot.toString()+")("+escapeJSON(scopedData)+","+replay+");";
+  head.prepend(runtime);
+  if(replay){
+    for(const placeholder of documentCopy.querySelectorAll("template[data-loadit-script]")){
+      const index=Number(placeholder.getAttribute("data-loadit-script"));
+      const info=page.scripts?.[index];
+      if(!info||!info.code){placeholder.remove();continue;}
+      const script=documentCopy.createElement("script");
+      script.type=info.type==="module"?"module":"text/javascript";
+      script.textContent=info.code.replace(new RegExp("<"+"/script","gi"),"<"+String.fromCharCode(92)+"/script");
+      placeholder.replaceWith(script);
+    }
+  }
+  return "<!doctype html>\n"+documentCopy.documentElement.outerHTML;
 }
-frame.addEventListener("load",()=>{
- let doc;try{doc=frame.contentDocument;}catch{return;}
- if(!doc)return;
- doc.addEventListener("click",event=>{
- const link=event.target.closest?.("a[href]");if(!link)return;
- const href=link.getAttribute("href");if(!href)return;
- if(href.startsWith("#"))return;
- let resolved;try{resolved=new URL(href,pages[current].url).href;}catch{return;}
- event.preventDefault();const next=byUrl.get(canonical(resolved));
- if(next===undefined){message("이 링크는 아카이브에 포함되지 않았습니다: "+resolved);}else show(next,true);
- },true);
- doc.addEventListener("submit",event=>{event.preventDefault();message("보존된 페이지의 양식 제출은 비활성화되어 있습니다.");},true);
+function show(indexPage,record=true){
+  const page=pages[indexPage];if(!page)return;
+  current=indexPage;
+  if(record){history.splice(position+1);history.push(indexPage);position=history.length-1;}
+  document.querySelector("#address").textContent=page.url;
+  document.title=(page.title||page.url)+" · Loadit";
+  notice.style.display="none";
+  frame.srcdoc=render(page,document.querySelector("#replay").checked);
+  for(const btn of nav.querySelectorAll("button.page"))btn.setAttribute("aria-current",String(Number(btn.dataset.index)===indexPage?"page":"false"));
+  const captured=page.network?.resources?.length||0,websockets=page.network?.websockets?.length||0;
+  status.textContent="오프라인 보존 · "+captured+"개 HTTP 응답 · "+websockets+"개 WebSocket 세션"+(page.scripts?.length?" · "+page.scripts.length+"개 스크립트 기록":"")+
+    (document.querySelector("#replay").checked?" · 원본 JS 재생 실험 모드":" · 정적 보존 모드");
+}
+function makeNav(){
+  const query=document.querySelector("#query").value.trim().toLowerCase();nav.replaceChildren();
+  pages.forEach((page,i)=>{if(query&&!(page.title+" "+page.url).toLowerCase().includes(query))return;
+    const button=document.createElement("button");button.className="page";button.dataset.index=i;button.type="button";
+    const label=document.createElement("span");label.textContent=page.title||page.url;
+    const detail=document.createElement("small");detail.textContent=page.url;
+    button.append(label,detail);button.addEventListener("click",()=>show(i));nav.append(button);
+  });
+}
+window.addEventListener("message",event=>{
+  if(event.source!==frame.contentWindow||!event.data?.loadit)return;
+  if(event.data.loadit==="form"){info("오프라인 아카이브에서는 양식 제출을 실행하지 않습니다.");return;}
+  if(event.data.loadit==="navigate"){
+    const url=canonical(event.data.href);
+    const target=index.get(url);
+    if(target===undefined)info("이 페이지는 아카이브에 포함되지 않았습니다: "+url);
+    else show(target);
+  }
 });
+document.querySelector("#query").addEventListener("input",makeNav);
+document.querySelector("#replay").addEventListener("change",()=>{if(current>=0)show(current,false);});
 document.querySelector("#back").addEventListener("click",()=>{if(position>0)show(history[--position],false);});
 document.querySelector("#forward").addEventListener("click",()=>{if(position<history.length-1)show(history[++position],false);});
-document.querySelector("#query").addEventListener("input",list);
-document.querySelector("#count").textContent=pages.length+"개 페이지 저장";
-list();if(pages.length)show(0,true);else {frame.hidden=true;message("이 아카이브에 페이지가 없습니다.");}
+document.querySelector("#count").textContent=pages.length+"개 페이지 · "+(archive.created||"").slice(0,10);
+makeNav();if(pages.length)show(0);else info("이 아카이브에 포함된 페이지가 없습니다.");
 })();
 </script>
 </body></html>

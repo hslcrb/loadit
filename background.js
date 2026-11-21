@@ -1,5 +1,5 @@
 /* Loadit MV3 background: download manager + local/GitHub quick save + archive orchestration. */
-importScripts("archive.js");
+importScripts("capture.js", "archive.js");
 const ARCHIVE_KEY = "loaditArchiveStatus";
 let archiveRunning = false;
 async function ensureOffscreen() {
@@ -75,6 +75,28 @@ async function saveGithubNote(args) {
   const result = await response.json();
   return {ok:true,url:result.content?.html_url || "https://github.com/"+repo};
 }
+async function browseGithub(args) {
+  const token=String(args.token||"").trim();
+  if(!token)throw Error("저장소/폴더 조회를 위해 GitHub 토큰을 입력하세요.");
+  const headers={"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+  let endpoint;
+  if(args.view==="repos") endpoint="https://api.github.com/user/repos?per_page=100&sort=updated";
+  else {
+    const repo=String(args.repo||"");
+    const pieces=repo.split("/");
+    if(pieces.length!==2 || pieces.some(x=>!x || !Array.from(x).every(c=>("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-").includes(c))))throw Error("owner/repo 형식으로 입력하세요.");
+    const folder=String(args.folder||"").split("/").filter(Boolean);
+    if(folder.some(x=>x==="."||x===".."))throw Error("잘못된 폴더 경로");
+    endpoint="https://api.github.com/repos/"+repo+"/contents/"+folder.map(encodeURIComponent).join("/");
+  }
+  const response=await fetch(endpoint,{headers});
+  if(!response.ok)throw Error("GitHub "+response.status+" · 저장소/폴더 조회에 실패했습니다.");
+  const data=await response.json();
+  if(!Array.isArray(data))throw Error("폴더 목록 대신 파일이 반환되었습니다.");
+  return {ok:true,items:data.slice(0,100).map(x=>args.view==="repos"?{
+    name:x.full_name,type:"repo",path:x.full_name
+  }:{name:x.name,type:x.type,path:x.path})};
+}
 async function collectCandidates(tabId) {
   const [{result}] = await chrome.scripting.executeScript({
     target:{tabId},
@@ -105,7 +127,8 @@ function contextMenus() {
     chrome.contextMenus.create({id:"loadit-link",title:"Loadit · 링크 파일 다운로드",contexts:["link"]});
     chrome.contextMenus.create({id:"loadit-image",title:"Loadit · 이미지 다운로드",contexts:["image"]});
     chrome.contextMenus.create({id:"loadit-media",title:"Loadit · 미디어 다운로드",contexts:["video","audio"]});
-    chrome.contextMenus.create({id:"loadit-selection",title:"Loadit · 선택 텍스트 저장",contexts:["selection"]});
+    chrome.contextMenus.create({id:"loadit-selection",title:"Loadit · 선택 텍스트 로컬 저장",contexts:["selection"]});
+    chrome.contextMenus.create({id:"loadit-selection-github",title:"Loadit · 선택 텍스트 GitHub 빠른 저장",contexts:["selection"]});
     chrome.contextMenus.create({id:"loadit-page",title:"Loadit · 현재 주소 다운로드",contexts:["page"]});
   }).catch(()=>{});
 }
@@ -113,6 +136,11 @@ chrome.runtime.onInstalled.addListener(contextMenus);
 chrome.runtime.onStartup.addListener(contextMenus);
 chrome.contextMenus.onClicked.addListener(async info => {
   try {
+    if (info.menuItemId === "loadit-selection-github") {
+      await chrome.storage.session.set({loaditSelection:info.selectionText || ""});
+      await chrome.tabs.create({url:chrome.runtime.getURL("popup.html") + "?tab=note"});
+      return;
+    }
     if (info.menuItemId === "loadit-selection") {
       const text = info.selectionText || "";
       await chrome.storage.session.set({loaditSelection:text});
@@ -157,6 +185,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond) => {
       }
       case "SAVE_TEXT":return saveBlob(String(message.content||""),message.filename || "Loadit/note.txt","text/plain;charset=utf-8");
       case "GITHUB_NOTE":return saveGithubNote(message);
+      case "GITHUB_BROWSE":return browseGithub(message);
       case "ARCHIVE_START":return startArchive(message);
       case "ARCHIVE_STATUS":return {ok:true,status:(await chrome.storage.session.get(ARCHIVE_KEY))[ARCHIVE_KEY] || {running:false}};
       case "LAST_SELECTION":return {ok:true,text:(await chrome.storage.session.get("loaditSelection")).loaditSelection || ""};

@@ -3,6 +3,16 @@
 async function loaditSnapshot(options) {
   const failures = [];
   const assets = new Map();
+  const recorded = new Map((options.resources || []).filter(x => x && x.url).map(x => [x.url,x]));
+  const scripts = [];
+  function fromCDP(url) { return recorded.get(url) || recorded.get(url.split("#")[0]); }
+  function encodeRecorded(entry) {
+    if (entry.base64) return "data:" + entry.mime + ";base64," + entry.body;
+    const bytes = new TextEncoder().encode(entry.body);
+    let binary = "";
+    for (let i=0;i<bytes.length;i+=16384) binary += String.fromCharCode(...bytes.subarray(i,i+16384));
+    return "data:" + entry.mime + ";base64," + btoa(binary);
+  }
   let bytesUsed = 0;
   const maxTotal = Math.min(25 * 1024 * 1024, Math.max(2 * 1024 * 1024, options.maxBytes || 10 * 1024 * 1024));
   const maxAsset = Math.min(8 * 1024 * 1024, maxTotal);
@@ -16,6 +26,8 @@ async function loaditSnapshot(options) {
     if (!url) return null;
     if (url.startsWith("data:")) return url;
     if (assets.has(url)) return assets.get(url);
+    const cached = fromCDP(url);
+    if (cached && cached.body.length < maxAsset * 1.4) return encodeRecorded(cached);
     const task = (async () => {
       try {
         const ctrl = new AbortController();
@@ -41,6 +53,8 @@ async function loaditSnapshot(options) {
     return task;
   }
   async function stylesheet(url) {
+    const source = fromCDP(url);
+    if (source && !source.base64 && source.type === "Stylesheet") return source.body;
     try {
       const ctrl = new AbortController(); const timeout = setTimeout(() => ctrl.abort(), 8000);
       let response;
@@ -73,10 +87,31 @@ async function loaditSnapshot(options) {
   }).map(x => { const u = new URL(x); u.hash = ""; return u.href; }))].slice(0, 350);
   const root = document.documentElement.cloneNode(true);
   const head = root.querySelector("head");
+  // Preserve original script source as inert templates. The viewer only runs it in opt-in replay mode.
+  const originalScripts = [...document.querySelectorAll("script")];
+  const placeholders = [...root.querySelectorAll("script")];
+  let scriptBudget = 0;
+  for (let i=0; i<placeholders.length; i++) {
+    const original=originalScripts[i], holder=placeholders[i];
+    const type=String(original?.type || "").toLowerCase();
+    const supported = !type || ["text/javascript","application/javascript","module"].includes(type);
+    if(!supported) { holder.remove(); continue; }
+    let code = original?.src ? fromCDP(original.src)?.body : original?.textContent;
+    let isModule = type === "module";
+    if(original?.src && !code) { mark(original.src,"실행 스크립트 응답 수집 실패"); holder.remove(); continue; }
+    if(original?.src && fromCDP(original.src)?.base64) { mark(original.src,"바이너리 스크립트"); holder.remove(); continue; }
+    code=String(code||"");
+    if(code.length>1100000 || scriptBudget+code.length>4000000) { mark(original?.src||"inline script","실행 스크립트 크기 제한"); holder.remove(); continue; }
+    scriptBudget+=code.length;
+    const placeholder=document.createElement("template");
+    placeholder.setAttribute("data-loadit-script", String(scripts.length));
+    holder.replaceWith(placeholder);
+    scripts.push({code,type:isModule?"module":"text/javascript",src:original?.src||null});
+  }
   if (head) {
     const policy = document.createElement("meta");
     policy.httpEquiv = "Content-Security-Policy";
-    policy.content = "default-src 'none'; img-src data:; font-src data:; media-src data:; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'";
+    policy.content = "default-src 'none'; img-src data:; font-src data:; media-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'";
     head.prepend(policy);
   }
   for (const el of root.querySelectorAll("script,base,meta[http-equiv],link[rel~=preconnect],link[rel~=dns-prefetch],link[rel~=icon],link[rel~=manifest],iframe,object,embed")) {
@@ -186,7 +221,7 @@ async function loaditSnapshot(options) {
   // Deliberate: do not record cookies, localStorage, HTTP authorization headers, or request bodies.
   const html = "<!doctype html>\n" + root.outerHTML;
   if (html.length > 14 * 1024 * 1024) throw Error("HTML snapshot exceeded 14 MiB");
-  return { url: location.href, title: document.title || location.pathname, html, links, failures, assetBytes: bytesUsed };
+  return { url: location.href, title: document.title || location.pathname, html, scripts, links, failures, assetBytes: bytesUsed };
 }
 const LoaditArchive = {
   async run(config, progress) {
@@ -200,9 +235,9 @@ const LoaditArchive = {
     const pages = [];
     const errors = [];
     let totalHtmlSize = 0;
-    const overallLimit = 35 * 1024 * 1024;
-    const currentTabs = await chrome.tabs.query({ currentWindow: true, active: true });
-    const activeTab = currentTabs[0];
+    const overallLimit = 75 * 1024 * 1024;
+    // Always open a disposable background tab so recording begins BEFORE navigation.
+    // It shares the user's browser profile, but does not alter the currently viewed tab.
     const clean = value => { const u = new URL(value); u.hash = ""; return u.href; };
     while (queue.length && pages.length < maxPages) {
       const task = queue.shift();
@@ -211,41 +246,42 @@ const LoaditArchive = {
       seen.add(url);
       if (new URL(url).origin !== origin) continue;
       progress({ running: true, done: pages.length, maxPages, currentUrl: url, errors: errors.length });
-      let tabId = null, created = false;
+      let tabId = null, recording = null;
       try {
-        if (pages.length === 0 && activeTab?.url && clean(activeTab.url) === url) {
-          tabId = activeTab.id;
-        } else {
-          const tab = await chrome.tabs.create({ url, active: false });
-          tabId = tab.id; created = true;
-          await new Promise((resolve, reject) => {
-            let completed = false;
-            const timeout = setTimeout(() => finish(new Error("페이지 로딩 시간 초과")), 24000);
-            const listener = (id, info) => { if (id === tabId && info.status === "complete") finish(); };
-            function finish(error) {
-              if (completed) return;
-              completed = true; clearTimeout(timeout);
-              chrome.tabs.onUpdated.removeListener(listener);
-              if (error) reject(error); else resolve();
-            }
-            chrome.tabs.onUpdated.addListener(listener);
-            chrome.tabs.get(tabId).then(tabInfo => { if (tabInfo.status === "complete") finish(); }).catch(finish);
-          });
-          await new Promise(resolve => setTimeout(resolve, 650));
-        }
-        const result = await chrome.scripting.executeScript({
-          target: { tabId },
-          func: loaditSnapshot,
-          args: [{ maxBytes: 10 * 1024 * 1024 }]
+        const tab = await chrome.tabs.create({url:"about:blank",active:false});
+        tabId=tab.id;
+        recording = await self.LoaditCapture.attach(tabId);
+        const loaded = new Promise((resolve,reject) => {
+          let settled=false;
+          const timeout=setTimeout(()=>finish(new Error("페이지 로딩 시간 초과")),25000);
+          const listener=(id,info)=>{ if(id===tabId && info.status==="complete") finish(); };
+          function finish(error) { if(settled)return; settled=true;clearTimeout(timeout);
+            chrome.tabs.onUpdated.removeListener(listener);error?reject(error):resolve(); }
+          chrome.tabs.onUpdated.addListener(listener);
+        });
+        await self.LoaditCapture.navigate(tabId,url);
+        await loaded;
+        await new Promise(resolve=>setTimeout(resolve,1300));
+        recording=await self.LoaditCapture.finish(tabId);
+        const result=await chrome.scripting.executeScript({
+          target:{tabId},func:loaditSnapshot,
+          args:[{maxBytes:10*1024*1024,resources:recording.resources}]
         });
         const snapshot = result?.[0]?.result;
         if (!snapshot?.html) throw Error("페이지 DOM을 캡처하지 못했습니다.");
-        if (totalHtmlSize + snapshot.html.length > overallLimit) {
+        const pageNetwork = {
+          resources:(recording.resources||[]).filter(x=>x.type==="XHR"||x.type==="Fetch"),
+          websockets:recording.websockets||[],
+          errors:recording.errors||[]
+        };
+        const pageSize = snapshot.html.length + JSON.stringify(pageNetwork).length + JSON.stringify(snapshot.scripts).length;
+        if (totalHtmlSize + pageSize > overallLimit) {
           errors.push({url,reason:"단일 HTML 총 용량 35MiB 제한에 도달했습니다."});
           break;
         }
-        pages.push({ url: snapshot.url, title: snapshot.title, html: snapshot.html });
-        totalHtmlSize += snapshot.html.length;
+        pages.push({ url: snapshot.url, title: snapshot.title, html: snapshot.html, scripts: snapshot.scripts, network:pageNetwork });
+        totalHtmlSize += pageSize;
+        if(pageNetwork.errors.length)errors.push({url,reason:pageNetwork.errors.join("; ")});
         if (snapshot.failures.length) errors.push({ url, reason: snapshot.failures.length + "개 리소스 보존 실패", resources: snapshot.failures.slice(0, 12) });
         if (task.depth < depth) {
           for (const link of snapshot.links) {
@@ -258,7 +294,12 @@ const LoaditArchive = {
           }
         }
       } catch (error) { errors.push({ url, reason: error.message || String(error) }); }
-      finally { if (created && tabId !== null) await chrome.tabs.remove(tabId).catch(() => {}); }
+      finally {
+        if(tabId !== null){
+          await self.LoaditCapture.finish(tabId).catch(()=>{});
+          await chrome.tabs.remove(tabId).catch(()=>{});
+        }
+      }
     }
     if (!pages.length) throw Error(errors.map(x => x.reason).join("; ") || "보존된 페이지가 없습니다.");
     const template = await (await fetch(chrome.runtime.getURL("viewer.html"))).text();

@@ -1,12 +1,33 @@
 {
   "manifest_version": 3,
   "name": "Loadit — 로드잇",
-  "version": "0.1.0",
-  "description": "범용 파일 다운로드와 다중 페이지 단일 HTML 아카이빙을 위한 순수 HTML/CSS/JavaScript 확장",
-  "permissions": ["activeTab", "tabs", "scripting", "downloads", "storage", "contextMenus", "offscreen"],
-  "host_permissions": ["https://api.github.com/*"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_title": "Loadit", "default_popup": "popup.html" },
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+  "version": "0.2.0",
+  "description": "범용 다운로드·GitHub 빠른 저장·단일 HTML 다중 페이지 보존 및 네트워크 기록/재생",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "downloads",
+    "storage",
+    "contextMenus",
+    "offscreen",
+    "debugger"
+  ],
+  "host_permissions": [
+    "https://api.github.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Loadit",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }

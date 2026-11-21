@@ -37,6 +37,7 @@ async function initialize(){
   $("#gh-path").value = settings.loaditPath || "notes/"+new Date().toISOString().slice(0,10)+"-note.md";
   const last = await request({type:"LAST_SELECTION"});
   if(last.text) $("#note-body").value=last.text;
+  if(new URLSearchParams(location.search).get("tab")==="note")switchTab("note");
   await refreshDownloads();
   await refreshArchive();
 }
@@ -105,6 +106,46 @@ $("#save-local").addEventListener("click",()=>task(async()=>{
   if(!body.trim())throw Error("메모를 입력하세요.");
   const result=await request({type:"SAVE_TEXT",content:body,filename:$("#note-name").value});
   toast("메모 파일 저장을 시작했습니다 · "+result.bytes+" bytes");
+}));
+function drawGithubBrowser(items,kind,currentFolder=""){
+  const node=$("#github-browser");node.replaceChildren();
+  if(kind==="folder" && currentFolder){
+    const back=document.createElement("button");back.type="button";back.className="small";
+    back.textContent="← 상위 폴더";back.addEventListener("click",()=>task(()=>browseFolder(currentFolder.split("/").slice(0,-1).join("/"))));node.append(back);
+  }
+  if(!items.length){const note=document.createElement("p");note.className="muted";note.textContent="표시할 저장소/폴더가 없습니다.";node.append(note);return;}
+  for(const item of items){
+    if(kind==="folder" && item.type!=="dir")continue;
+    const button=document.createElement("button");button.type="button";button.className="page";
+    button.style.cssText="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #263956;background:transparent;color:#dae8ff;padding:9px;";
+    button.textContent=(item.type==="dir"?"▣ ":"")+(item.name||item.path);
+    button.addEventListener("click",()=>task(async()=>{
+      if(kind==="repo"){
+        $("#gh-repo").value=item.path;
+        await browseFolder("");
+      }else{
+        const currentFile=$("#gh-path").value.split("/").pop()||"quick-note.md";
+        $("#gh-path").value=item.path+"/"+currentFile;
+        await browseFolder(item.path);
+      }
+    }));
+    node.append(button);
+  }
+}
+function tokenForBrowse(){const token=$("#gh-token").value.trim();if(!token)throw Error("저장소를 탐색하려면 GitHub 토큰을 입력하세요.");return token;}
+async function browseFolder(folder){
+  const repo=$("#gh-repo").value.trim();
+  if(!repo)throw Error("owner/repo를 먼저 지정하세요.");
+  const result=await request({type:"GITHUB_BROWSE",view:"folder",repo,folder,token:tokenForBrowse()});
+  drawGithubBrowser(result.items,"folder",folder);
+}
+$("#browse-repos").addEventListener("click",()=>task(async()=>{
+  const response=await request({type:"GITHUB_BROWSE",view:"repos",token:tokenForBrowse()});
+  drawGithubBrowser(response.items,"repo");
+}));
+$("#browse-folder").addEventListener("click",()=>task(async()=>{
+  const dir=$("#gh-path").value.split("/").slice(0,-1).join("/");
+  await browseFolder(dir);
 }));
 $("#save-github").addEventListener("click",()=>task(async()=>{
   const repo=$("#gh-repo").value.trim(),path=$("#gh-path").value.trim();
