@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Loadit · 저장된 웹사이트</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans KR",sans-serif;color:#eaf1ff;background:#0b1221}
+*{box-sizing:border-box}body{margin:0;display:grid;grid-template-rows:56px minmax(0,1fr);height:100dvh}
+header{display:flex;align-items:center;gap:13px;padding:10px 16px;background:#121d33;border-bottom:1px solid #31405b}
+.brand{font-weight:800;letter-spacing:-.03em;font-size:19px;color:#87adff}header small{color:#a9b6cc;font-size:11px}
+header .meta{margin-left:auto;color:#a9b6cc;font-size:12px}main{min-height:0;display:grid;grid-template-columns:270px minmax(0,1fr)}
+aside{background:#10192c;border-right:1px solid #2d3c57;display:flex;flex-direction:column;min-height:0}
+.search{padding:12px;border-bottom:1px solid #29364d}
+input{background:#1b2a44;border:1px solid #395071;border-radius:9px;width:100%;color:#fff;padding:10px 12px;font:inherit;font-size:13px}
+#nav{padding:7px;overflow:auto;flex:1}button{font:inherit;cursor:pointer}
+.page{width:100%;background:none;color:#bdcce2;border:0;text-align:left;padding:12px;border-radius:9px;display:block}
+.page:hover{background:#1d2b42}.page[aria-current="page"]{background:#243b65;color:#fff}
+.page span{display:block;font-size:13px;font-weight:650;overflow-wrap:anywhere}.page small{display:block;font-size:10px;color:#96a9c6;overflow-wrap:anywhere;margin-top:5px}
+article{display:flex;min-height:0;flex-direction:column;background:white;color:#243049}
+.bar{height:42px;background:#f2f5fa;border-bottom:1px solid #dce3ef;display:flex;align-items:center;gap:9px;padding:0 12px;font-size:12px}
+.bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.bar button{border:1px solid #c7d3e4;border-radius:7px;background:white;padding:5px 9px;color:#233b5e}
+#frame{flex:1;width:100%;border:0;background:white;min-height:0}
+#notice{background:#fff2d1;color:#715314;padding:7px 12px;font-size:12px;display:none}
+#empty{padding:30px;color:#cbd8f1}footer{padding:9px;font-size:10px;color:#8698b4;border-top:1px solid #29364d}
+@media(max-width:700px){main{grid-template-columns:132px minmax(0,1fr)}header small,.meta{display:none}.page{padding:9px}.page span{font-size:11px}}
+</style>
+</head>
+<body>
+<header><span class="brand">loadit.</span><small>오프라인 사이트 아카이브 · 외부 서버 없이 동작</small><span id="count" class="meta"></span></header>
+<main><aside><div class="search"><input id="query" placeholder="페이지 검색" aria-label="페이지 검색"></div><nav id="nav"></nav><footer>Loadit Archive · 데이터는 이 HTML에 내장됨</footer></aside>
+<article><div class="bar"><button id="back" type="button" title="이전 페이지">←</button><button id="forward" type="button" title="다음 페이지">→</button><span id="address">페이지를 선택하세요</span></div><div id="notice" role="status"></div><iframe id="frame" title="저장된 페이지" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe></article></main>
+<script id="loadit-payload" type="application/json">__LOADIT_PAGES__</script>
+<script>
+(function(){
+"use strict";
+const payload = JSON.parse(document.querySelector("#loadit-payload").textContent);
+const pages = Array.isArray(payload.pages) ? payload.pages : [];
+const byUrl = new Map(pages.map((page, i) => [canonical(page.url), i]));
+const nav = document.querySelector("#nav");
+const frame = document.querySelector("#frame");
+const notice = document.querySelector("#notice");
+const history = [];
+let position = -1, current = -1;
+function canonical(value){try{const u=new URL(value);u.hash="";return u.href;}catch{return value;}}
+function message(text){notice.textContent=text;notice.style.display="block";}
+function show(index, record){
+ if (!pages[index]) return;
+ current=index;const page=pages[index];if(record){history.splice(position+1);history.push(index);position=history.length-1;}
+ document.querySelector("#address").textContent=page.url;
+ document.title=(page.title||page.url)+" · Loadit";
+ notice.style.display="none";frame.srcdoc=page.html;
+ for(const btn of nav.querySelectorAll(".page"))btn.setAttribute("aria-current",Number(btn.dataset.index)===index?"page":"false");
+}
+function list(){
+ const query=document.querySelector("#query").value.trim().toLowerCase();nav.replaceChildren();
+ pages.forEach((p,i)=>{if(query && !(p.title+" "+p.url).toLowerCase().includes(query))return;
+ const btn=document.createElement("button");btn.className="page";btn.dataset.index=i;btn.type="button";
+ const label=document.createElement("span");label.textContent=p.title||p.url;
+ const hint=document.createElement("small");hint.textContent=p.url;
+ btn.append(label,hint);btn.addEventListener("click",()=>show(i,true));nav.append(btn);
+ });
+}
+frame.addEventListener("load",()=>{
+ let doc;try{doc=frame.contentDocument;}catch{return;}
+ if(!doc)return;
+ doc.addEventListener("click",event=>{
+ const link=event.target.closest?.("a[href]");if(!link)return;
+ const href=link.getAttribute("href");if(!href)return;
+ if(href.startsWith("#"))return;
+ let resolved;try{resolved=new URL(href,pages[current].url).href;}catch{return;}
+ event.preventDefault();const next=byUrl.get(canonical(resolved));
+ if(next===undefined){message("이 링크는 아카이브에 포함되지 않았습니다: "+resolved);}else show(next,true);
+ },true);
+ doc.addEventListener("submit",event=>{event.preventDefault();message("보존된 페이지의 양식 제출은 비활성화되어 있습니다.");},true);
+});
+document.querySelector("#back").addEventListener("click",()=>{if(position>0)show(history[--position],false);});
+document.querySelector("#forward").addEventListener("click",()=>{if(position<history.length-1)show(history[++position],false);});
+document.querySelector("#query").addEventListener("input",list);
+document.querySelector("#count").textContent=pages.length+"개 페이지 저장";
+list();if(pages.length)show(0,true);else {frame.hidden=true;message("이 아카이브에 페이지가 없습니다.");}
+})();
+</script>
+</body></html>

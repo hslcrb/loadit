@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loadit</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+<header><div><span class="logo">loadit<span class="dot">.</span></span><span class="tag">DOWNLOAD + ARCHIVE</span></div><div class="subtitle">필요한 것을 저장하고, 웹의 순간을 간직하세요.</div></header>
+<nav class="tabs" aria-label="모드">
+<button id="tab-download" class="tab active" data-tab="download" aria-selected="true">↓ 다운로드</button>
+<button id="tab-archive" class="tab" data-tab="archive" aria-selected="false">▣ 사이트 보존</button>
+<button id="tab-note" class="tab" data-tab="note" aria-selected="false">✎ 빠른 메모</button>
+</nav>
+<main>
+<section id="panel-download" class="panel active">
+<div class="group"><label for="url">다운로드할 파일 주소</label><input id="url" type="url" placeholder="https://example.com/file.zip" spellcheck="false">
+<label for="filename">저장 파일명 / 하위 경로 (선택)</label><input id="filename" type="text" placeholder="Loadit/example.zip"><button id="download" class="primary full">URL 다운로드</button></div>
+<div class="group"><div class="group-head"><strong>현재 페이지의 파일 탐색</strong><button id="scan" class="small">파일 탐색</button></div><div class="hint">링크·이미지·미디어를 탐색합니다. 브라우저에서 직접 선택해 저장할 수 있습니다.</div><div id="candidates" class="list"><p class="muted">파일 탐색을 누르면 후보가 표시됩니다.</p></div><button id="download-selected" class="secondary full" disabled>선택한 파일 다운로드</button></div>
+<div class="group"><div class="group-head"><strong>브라우저 다운로드 현황</strong><button id="refresh" class="small">새로고침</button></div><div id="downloads" class="list"><p class="muted">불러오는 중…</p></div></div>
+</section>
+<section id="panel-archive" class="panel">
+<div class="group"><strong class="section-title">여러 페이지를, 단 하나의 HTML로.</strong><p class="hint">시작 URL의 같은 출처 링크를 탐색해 페이지별 DOM과 가능한 정적 리소스를 보존합니다. 결과물의 사이드바와 링크는 JavaScript로 페이지를 바꿉니다.</p>
+<label for="archive-url">시작 웹사이트 URL</label><input id="archive-url" type="url" placeholder="https://example.com/" spellcheck="false">
+<div class="two"><div><label for="max-pages">최대 페이지 수</label><select id="max-pages"><option>1</option><option>3</option><option selected>5</option><option>8</option><option>12</option></select></div><div><label for="depth">링크 탐색 깊이</label><select id="depth"><option value="0">현재 페이지</option><option value="1" selected>1단계</option><option value="2">2단계</option><option value="3">3단계</option></select></div></div>
+<button id="archive" class="primary full">단일 HTML 만들기</button>
+<div class="hint safety">HTML 결과에는 탐색한 페이지의 렌더링된 화면이 담깁니다. 서버 데이터베이스·로그인 상태·원본 JS의 실시간 동작을 완전히 복제하지 않습니다. 입력 비밀번호와 인증 토큰은 의도적으로 보존하지 않습니다.</div>
+<div id="archive-status" class="status" role="status">작업을 시작할 수 있습니다.</div></div>
+</section>
+<section id="panel-note" class="panel">
+<div class="group"><strong class="section-title">텍스트를 어디서든 빠르게 저장</strong><p class="hint">텍스트를 로컬 파일로 저장하거나 GitHub 저장소에 직접 기록합니다. 우클릭으로 선택한 텍스트도 자동으로 로컬에 저장할 수 있습니다.</p>
+<label for="note-body">메모 / 선택 텍스트</label><textarea id="note-body" rows="6" placeholder="생각나는 내용을 바로 기록하세요."></textarea>
+<label for="note-name">로컬 파일명</label><input id="note-name" value="Loadit/quick-note.txt"><button id="save-local" class="secondary full">메모 파일 다운로드</button></div>
+<div class="group"><div class="group-head"><strong>GitHub 빠른 저장</strong><span class="micro">선택 기능</span></div>
+<label for="gh-repo">저장소</label><input id="gh-repo" placeholder="owner/repository" spellcheck="false">
+<label for="gh-path">새 파일 경로</label><input id="gh-path" placeholder="notes/2026-11-21-note.md" spellcheck="false">
+<label for="gh-token">GitHub Personal Access Token (Contents: write)</label><input id="gh-token" type="password" placeholder="저장하지 않는 일회성 토큰" autocomplete="off" spellcheck="false">
+<button id="save-github" class="primary full">GitHub에 새 파일 생성</button>
+<p class="hint">토큰은 설정·저장소에 저장하지 않고, 요청에만 사용합니다. 기존 파일은 덮어쓰지 않습니다.</p></div>
+</section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<footer><span>LOADIT 0.1</span><a href="https://github.com/hslcrb/loadit" target="_blank" rel="noopener noreferrer">GitHub ↗</a></footer>
+<script src="popup.js"></script></body></html>
